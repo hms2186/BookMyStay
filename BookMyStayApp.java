@@ -1,7 +1,11 @@
 import java.util.*;
 
-// -------------------- ADD-ON SERVICE --------------------
+// ---------------- ENUM ----------------
+enum RoomType {
+    SINGLE, DOUBLE, SUITE
+}
 
+// ---------------- SERVICE MODEL ----------------
 class AddOnService {
     private String name;
     private double price;
@@ -11,194 +15,128 @@ class AddOnService {
         this.price = price;
     }
 
-    public String getName() { return name; }
-    public double getPrice() { return price; }
+    public double getPrice() {
+        return price;
+    }
 
-    public void display() {
-        System.out.println(name + " (₹" + price + ")");
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public String toString() {
+        return name + " (₹" + price + ")";
     }
 }
 
-// -------------------- ADD-ON SERVICE MANAGER --------------------
+// ---------------- INVENTORY ----------------
+class RoomInventory {
+    private Map<RoomType, Integer> inventory = new HashMap<>();
 
-class AddOnServiceManager {
-    private Map<String, List<AddOnService>> serviceMap = new HashMap<>();
-
-    public void addService(String reservationId, AddOnService service) {
-        serviceMap.putIfAbsent(reservationId, new ArrayList<>());
-        serviceMap.get(reservationId).add(service);
-        System.out.println(service.getName() + " added to Reservation " + reservationId);
+    public void addRoom(RoomType type, int count) {
+        inventory.put(type, count);
     }
 
-    public List<AddOnService> getServices(String reservationId) {
-        return serviceMap.getOrDefault(reservationId, new ArrayList<>());
+    public int getAvailability(RoomType type) {
+        return inventory.getOrDefault(type, 0);
+    }
+
+    public void decrement(RoomType type) {
+        inventory.put(type, getAvailability(type) - 1);
+    }
+}
+
+// ---------------- ALLOCATION ----------------
+class RoomAllocationService {
+    private Set<String> allocatedIds = new HashSet<>();
+
+    public String allocate(RoomType type) {
+        String id = type.name().charAt(0) + "-" +
+                UUID.randomUUID().toString().substring(0, 5);
+
+        if (allocatedIds.contains(id)) return null;
+
+        allocatedIds.add(id);
+        return id;
+    }
+}
+
+// ---------------- ADD-ON SERVICE MANAGER ----------------
+class AddOnServiceManager {
+    private Map<String, List<AddOnService>> reservationServices = new HashMap<>();
+
+    public void addService(String reservationId, AddOnService service) {
+        reservationServices.putIfAbsent(reservationId, new ArrayList<>());
+        reservationServices.get(reservationId).add(service);
     }
 
     public double calculateTotalCost(String reservationId) {
         double total = 0;
-        for (AddOnService service : getServices(reservationId)) {
-            total += service.getPrice();
+
+        List<AddOnService> services = reservationServices.get(reservationId);
+        if (services != null) {
+            for (AddOnService s : services) {
+                total += s.getPrice();
+            }
         }
+
         return total;
     }
 
     public void displayServices(String reservationId) {
-        System.out.println("\n=== Add-On Services for " + reservationId + " ===");
+        System.out.println("\nServices for Reservation " + reservationId + ":");
 
-        List<AddOnService> services = getServices(reservationId);
+        List<AddOnService> services = reservationServices.get(reservationId);
 
-        if (services.isEmpty()) {
-            System.out.println("No add-on services selected.");
+        if (services == null || services.isEmpty()) {
+            System.out.println("No services selected.");
             return;
         }
 
         for (AddOnService s : services) {
-            s.display();
+            System.out.println("- " + s);
         }
 
         System.out.println("Total Add-On Cost: ₹" + calculateTotalCost(reservationId));
     }
 }
 
-// -------------------- BOOKING RECORD --------------------
-
-class BookingRecord {
-    private String reservationId;
-    private String guestName;
-    private String roomType;
-
-    public BookingRecord(String reservationId, String guestName, String roomType) {
-        this.reservationId = reservationId;
-        this.guestName = guestName;
-        this.roomType = roomType;
-    }
-
-    public String getReservationId() { return reservationId; }
-
-    public void display() {
-        System.out.println("Reservation ID: " + reservationId +
-                ", Guest: " + guestName +
-                ", Room Type: " + roomType);
-    }
-}
-
-// -------------------- BOOKING HISTORY --------------------
-
-class BookingHistory {
-    private List<BookingRecord> history = new ArrayList<>();
-
-    public void addBooking(BookingRecord record) {
-        history.add(record);
-        System.out.println("Booking added to history: " + record.getReservationId());
-    }
-
-    public List<BookingRecord> getAllBookings() {
-        return history;
-    }
-
-    public void displayHistory() {
-        System.out.println("\n=== Booking History ===");
-        if (history.isEmpty()) {
-            System.out.println("No bookings found.");
-            return;
-        }
-
-        for (BookingRecord record : history) {
-            record.display();
-        }
-    }
-}
-
-// -------------------- BOOKING REPORT SERVICE --------------------
-
-class BookingReportService {
-    public void generateReport(BookingHistory history) {
-        System.out.println("\n=== Booking Report ===");
-
-        List<BookingRecord> bookings = history.getAllBookings();
-        System.out.println("Total Confirmed Bookings: " + bookings.size());
-
-        for (BookingRecord record : bookings) {
-            record.display();
-        }
-    }
-}
-
-// -------------------- VALIDATION EXCEPTION --------------------
-
-class ValidationException extends Exception {
-    public ValidationException(String message) {
-        super(message);
-    }
-}
-
-// -------------------- BOOKING VALIDATOR --------------------
-
-class BookingValidator {
-
-    public static void validate(String reservationId, String guestName, String roomType)
-            throws ValidationException {
-
-        if (reservationId == null || reservationId.isEmpty()) {
-            throw new ValidationException("Reservation ID cannot be empty.");
-        }
-
-        if (guestName == null || guestName.length() < 3) {
-            throw new ValidationException("Guest name must be at least 3 characters.");
-        }
-
-        if (!(roomType.equalsIgnoreCase("Single") ||
-              roomType.equalsIgnoreCase("Double") ||
-              roomType.equalsIgnoreCase("Deluxe"))) {
-            throw new ValidationException("Invalid room type selected.");
-        }
-    }
-}
-
-// -------------------- MAIN DEMO --------------------
-
-public class BookMyStayApp {
-
+// ---------------- MAIN ----------------
+public class UseCase7BookingSystem {
     public static void main(String[] args) {
 
-        String res1 = "S101";
-        String res2 = "D205";
+        System.out.println("======================================");
+        System.out.println(" Book My Stay App ");
+        System.out.println(" Version: 7.0 ");
+        System.out.println("======================================");
+
+        // Core services (unchanged)
+        RoomInventory inventory = new RoomInventory();
+        inventory.addRoom(RoomType.SINGLE, 2);
+
+        RoomAllocationService allocator = new RoomAllocationService();
+
+        // Allocate room
+        String reservationId = allocator.allocate(RoomType.SINGLE);
+        inventory.decrement(RoomType.SINGLE);
+
+        System.out.println("\nReservation Confirmed: " + reservationId);
+
+        // Add-on services
+        AddOnService wifi = new AddOnService("WiFi", 500);
+        AddOnService breakfast = new AddOnService("Breakfast", 800);
+        AddOnService spa = new AddOnService("Spa", 1500);
 
         AddOnServiceManager manager = new AddOnServiceManager();
 
-        AddOnService breakfast = new AddOnService("Breakfast", 300);
-        AddOnService wifi = new AddOnService("Premium WiFi", 200);
-        AddOnService spa = new AddOnService("Spa Access", 1000);
+        // Attach services
+        manager.addService(reservationId, wifi);
+        manager.addService(reservationId, breakfast);
+        manager.addService(reservationId, spa);
 
-        manager.addService(res1, breakfast);
-        manager.addService(res1, wifi);
-        manager.addService(res2, spa);
+        // Display
+        manager.displayServices(reservationId);
 
-        manager.displayServices(res1);
-        manager.displayServices(res2);
-
-        BookingHistory history = new BookingHistory();
-        BookingReportService reportService = new BookingReportService();
-
-        try {
-            // Valid booking
-            BookingValidator.validate(res1, "Arun", "Single");
-            BookingRecord b1 = new BookingRecord(res1, "Arun", "Single");
-            history.addBooking(b1);
-
-            // Invalid booking example
-            BookingValidator.validate(res2, "Me", "Luxury"); // Will cause error
-            BookingRecord b2 = new BookingRecord(res2, "Me", "Luxury");
-            history.addBooking(b2);
-
-        } catch (ValidationException e) {
-            System.out.println("Booking Error: " + e.getMessage());
-        }
-
-        // Admin views history & report
-        history.displayHistory();
-        reportService.generateReport(history);
-
-        System.out.println("\nSystem continues running safely after handling errors ✅");
+        System.out.println("\nApplication execution completed.");
     }
 }
